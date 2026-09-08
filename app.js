@@ -63,6 +63,10 @@ function renderOverview(data) {
       <div class="ov-value">${data.valid_count}</div>
       <div class="ov-label">有效品种</div>
     </div>
+    <div class="overview-card" style="background:linear-gradient(135deg,rgba(227,179,65,0.1),rgba(227,179,65,0.05));border-color:#e3b341">
+      <div class="ov-value" style="color:#e3b341">${data.strong_count || 0}</div>
+      <div class="ov-label">⭐ 双20%强信号</div>
+    </div>
     <div class="overview-card up">
       <div class="ov-value">${data.up_count}</div>
       <div class="ov-label">上涨品种</div>
@@ -70,10 +74,6 @@ function renderOverview(data) {
     <div class="overview-card down">
       <div class="ov-value">${data.down_count}</div>
       <div class="ov-label">下跌品种</div>
-    </div>
-    <div class="overview-card">
-      <div class="ov-value">${data.error_count}</div>
-      <div class="ov-label">数据异常</div>
     </div>
   `;
 }
@@ -86,7 +86,7 @@ function renderPatternDetails(data) {
   container.innerHTML = order.map((name, idx) => {
     const p = data.patterns[name];
     const config = PATTERN_CONFIG[name];
-    const isOpen = idx < 2 || p.count > 0; // 前两个或有数据的默认展开
+    const isOpen = idx < 2 || p.count > 0;
 
     const itemsHtml = p.count > 0
       ? `<div class="pd-items">${p.items.map(item => renderItemCard(item, name)).join('')}</div>`
@@ -115,6 +115,7 @@ function renderItemCard(item, patternName) {
   const config = PATTERN_CONFIG[patternName];
   const priceClass = pctClass(item.price_change_pct);
   const holdBarWidth = Math.min(Math.abs(item.hold_change_pct) / 30 * 100, 100);
+  const strongBadge = item.is_strong ? '<span style="background:#e3b341;color:#000;padding:2px 8px;border-radius:12px;font-size:0.7rem;font-weight:700;margin-left:auto">⭐双20%</span>' : '';
 
   return `
     <div class="item-card">
@@ -122,6 +123,7 @@ function renderItemCard(item, patternName) {
         <span class="item-symbol" style="color:${config.color}">${item.symbol}</span>
         <span class="item-name">${item.name}</span>
         <span class="item-exchange">${item.exchange}</span>
+        ${strongBadge}
       </div>
       <div class="item-stats">
         <div class="item-stat">
@@ -156,13 +158,12 @@ function renderAllResults(data) {
     const rank = index + 1;
     const config = PATTERN_CONFIG[item.pattern] || { tagClass: 'gray' };
     const priceClass = pctClass(item.price_change_pct);
+    const strongStar = item.is_strong ? ' <span style="color:#e3b341">⭐</span>' : '';
 
-    // 成交量相对5日均的比例
     const volRatio = item.vol_5ma > 0 ? (item.today_vol / item.vol_5ma) : 0;
     const volBarWidth = Math.min(volRatio * 40, 100);
     const volBarColor = item.today_vol > item.vol_5ma && item.today_vol > item.vol_20ma ? '#3fb950' : '#f85149';
 
-    // 三维徽章
     const priceDim = item.price_change_pct > 0 ? 'up' : 'down';
     const volDim = item.today_vol > item.vol_5ma && item.today_vol > item.vol_20ma ? 'vol-up' : 'vol-down';
     const holdDim = item.hold_change_pct > 0 ? 'hold-up' : 'hold-down';
@@ -171,7 +172,7 @@ function renderAllResults(data) {
       <tr>
         <td class="rank">${rank}</td>
         <td class="symbol-cell">
-          ${item.symbol}
+          ${item.symbol}${strongStar}
           <div class="symbol-name">${item.name}</div>
         </td>
         <td>${item.exchange}</td>
@@ -234,7 +235,6 @@ function scrollToPattern(name) {
   }
 }
 
-// 暴露到全局
 window.togglePattern = togglePattern;
 window.scrollToPattern = scrollToPattern;
 
@@ -258,7 +258,6 @@ async function loadData() {
   }
 }
 
-// 页面加载完成后执行
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', loadData);
 } else {

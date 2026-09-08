@@ -163,17 +163,12 @@ def classify_pattern(
     hold_change_pct: float,
 ) -> str:
     """根据三个维度判断品种属于哪种形态"""
-    # 价格方向
     is_up = price_change_pct > 0
     is_down = price_change_pct < 0
-
-    # 成交量方向
-    is_vol_up = today_vol > vol_5ma and today_vol > vol_20ma  # 放量
-    is_vol_down = not is_vol_up  # 缩量
-
-    # 持仓量方向
-    is_hold_up = hold_change_pct > 0  # 增仓
-    is_hold_down = hold_change_pct < 0  # 减仓
+    is_vol_up = today_vol > vol_5ma and today_vol > vol_20ma
+    is_vol_down = not is_vol_up
+    is_hold_up = hold_change_pct > 0
+    is_hold_down = hold_change_pct < 0
 
     if is_up and is_vol_up and is_hold_up:
         return "高富帅"
@@ -192,7 +187,7 @@ def classify_pattern(
     elif is_down and is_vol_down and is_hold_down:
         return "跌势将尽"
     else:
-        return "未分类"  # 涨跌幅=0 的平盘情况
+        return "未分类"
 
 
 def analyze_symbol(symbol: str, name: str, exchange: str) -> dict | None:
@@ -232,6 +227,11 @@ def analyze_symbol(symbol: str, name: str, exchange: str) -> dict | None:
         hold_change_pct=hold_change_pct,
     )
 
+    # 双20%强信号标准（北大笔记：双爆量）
+    is_hold_20p = abs(hold_change_pct) >= 20.0
+    is_vol_20p = today_vol >= vol_20ma * 1.2
+    is_strong = is_hold_20p and is_vol_20p
+
     return {
         "symbol": symbol,
         "name": name,
@@ -248,6 +248,9 @@ def analyze_symbol(symbol: str, name: str, exchange: str) -> dict | None:
         "prev_close": round(prev_close, 2),
         "price_change_pct": round(price_change_pct, 2),
         "pattern": pattern,
+        "is_strong": is_strong,
+        "is_hold_20p": is_hold_20p,
+        "is_vol_20p": is_vol_20p,
         "dims": {
             "price": "上涨" if price_change_pct > 0 else "下跌" if price_change_pct < 0 else "平盘",
             "vol": "放量" if today_vol > vol_5ma and today_vol > vol_20ma else "缩量",
@@ -268,7 +271,8 @@ def scan_all() -> dict:
         print(f"扫描 {symbol} ({name})...", end=" ")
         result = analyze_symbol(symbol, name, exchange)
         if result:
-            print(f"✓ {result['pattern']} | 持仓变化 {result['hold_change_pct']:+.2f}%, 涨跌 {result['price_change_pct']:+.2f}%")
+            strong_tag = " ⭐" if result["is_strong"] else ""
+            print(f"✓ {result['pattern']}{strong_tag} | 持仓变化 {result['hold_change_pct']:+.2f}%, 涨跌 {result['price_change_pct']:+.2f}%")
             all_results.append(result)
         else:
             print("✗ 数据不足或获取失败")
@@ -290,6 +294,11 @@ def scan_all() -> dict:
     up_count = sum(1 for r in all_results if r["price_change_pct"] > 0)
     down_count = sum(1 for r in all_results if r["price_change_pct"] < 0)
 
+    # 强信号统计（双20%）
+    strong_count = sum(1 for r in all_results if r["is_strong"])
+    strong_gao = [r for r in all_results if r["pattern"] == "高富帅" and r["is_strong"]]
+    strong_bai = [r for r in all_results if r["pattern"] == "白富美" and r["is_strong"]]
+
     output = {
         "scan_date": scan_date,
         "data_date": data_date,
@@ -300,6 +309,9 @@ def scan_all() -> dict:
         "errors": errors,
         "up_count": up_count,
         "down_count": down_count,
+        "strong_count": strong_count,
+        "strong_gao_count": len(strong_gao),
+        "strong_bai_count": len(strong_bai),
         "patterns": {
             name: {
                 "label": info["label"],
@@ -335,6 +347,7 @@ def main():
     print(f"有效数据: {data['valid_count']} 个")
     print(f"失败品种: {data['error_count']} 个")
     print(f"上涨: {data['up_count']} 个 | 下跌: {data['down_count']} 个")
+    print(f"双20%强信号: {data['strong_count']} 个")
     print(f"{'='*60}")
 
     print("\n📊 八种形态分布:")
@@ -350,8 +363,9 @@ def main():
         for name, p in non_empty:
             print(f"\n{PATTERNS[name]['emoji']} {name} ({PATTERNS[name]['label']}) — {p['count']} 个:")
             for item in p["items"]:
+                strong = " ⭐双20%" if item["is_strong"] else ""
                 direction = "↑" if item["price_change_pct"] > 0 else "↓"
-                print(f"    {item['symbol']:5s} {item['name']:6s} {direction} 持仓{item['hold_change_pct']:+6.2f}% 价格{item['price_change_pct']:+6.2f}%")
+                print(f"    {item['symbol']:5s} {item['name']:6s} {direction} 持仓{item['hold_change_pct']:+6.2f}% 价格{item['price_change_pct']:+6.2f}%{strong}")
 
     return data
 
