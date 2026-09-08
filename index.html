@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>高富帅 · 期货策略扫描</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <h1>🏆 高富帅</h1>
+        <p class="subtitle">期货主力连续合约 · 三条件策略扫描</p>
+      </div>
+      <div class="header-right">
+        <div class="meta-item">
+          <span class="meta-label">数据日期</span>
+          <span class="meta-value" id="data-date">--</span>
+        </div>
+        <div class="meta-item">
+          <span class="meta-label">扫描时间</span>
+          <span class="meta-value" id="scan-date">--</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- 策略说明 -->
+    <section class="strategy-info">
+      <div class="condition-tag">
+        <span class="condition-icon">📈</span>
+        <div>
+          <strong>高</strong>
+          <span class="condition-desc">持仓量日环比 ≥ 20%</span>
+        </div>
+      </div>
+      <div class="condition-tag">
+        <span class="condition-icon">💰</span>
+        <div>
+          <strong>富</strong>
+          <span class="condition-desc">成交量 > 5日/20日均量</span>
+        </div>
+      </div>
+      <div class="condition-tag">
+        <span class="condition-icon">🎯</span>
+        <div>
+          <strong>帅</strong>
+          <span class="condition-desc">涨跌幅绝对值 > 0.1%</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- 统计面板 -->
+    <section class="stats-panel">
+      <div class="stat-card">
+        <div class="stat-icon">🔍</div>
+        <div class="stat-value" id="stat-total">--</div>
+        <div class="stat-label">扫描品种</div>
+      </div>
+      <div class="stat-card stat-highlight">
+        <div class="stat-icon">⭐</div>
+        <div class="stat-value" id="stat-gao">--</div>
+        <div class="stat-label">高富帅数量</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📊</div>
+        <div class="stat-value" id="stat-high">--</div>
+        <div class="stat-label">增仓 ≥ 20%</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-icon">📈</div>
+        <div class="stat-value" id="stat-up">--</div>
+        <div class="stat-label">上涨品种</div>
+      </div>
+    </section>
+
+    <!-- 高富帅专区 -->
+    <section class="section" id="gao-fu-shuai-section">
+      <h2 class="section-title">
+        <span class="title-icon">⭐</span>
+        高富帅品种
+        <span class="count-badge" id="gao-count">0</span>
+      </h2>
+      <div class="cards-grid" id="gao-fu-shuai-cards">
+        <!-- 动态渲染 -->
+      </div>
+      <div class="empty-state" id="gao-empty">
+        <div class="empty-icon">😴</div>
+        <p>今日暂无高富帅品种</p>
+        <p class="empty-hint">同时满足「高」「富」「帅」三个条件的品种会在这里展示</p>
+      </div>
+    </section>
+
+    <!-- 全部品种排行 -->
+    <section class="section">
+      <h2 class="section-title">
+        <span class="title-icon">📋</span>
+        全部品种排行
+        <span class="sort-hint">按增仓幅度排序</span>
+      </h2>
+      <div class="table-container">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>排名</th>
+              <th>品种</th>
+              <th>交易所</th>
+              <th>持仓变化</th>
+              <th>增仓幅度</th>
+              <th>成交量</th>
+              <th>5日均量</th>
+              <th>20日均量</th>
+              <th>收盘价</th>
+              <th>涨跌幅</th>
+              <th>条件满足</th>
+            </tr>
+          </thead>
+          <tbody id="all-results-body">
+            <!-- 动态渲染 -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <p>数据来源：新浪财经期货主力连续合约 · 策略计算基于 akshare</p>
+      <p>每日 15:35 自动更新</p>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
