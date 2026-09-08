@@ -1,139 +1,189 @@
 /**
- * 高富帅策略前端渲染逻辑
+ * 期货八种形态前端渲染逻辑
  */
 
-// 格式化数字
+// ===== 格式化工具 =====
 function fmtNum(n) {
   return new Intl.NumberFormat('zh-CN').format(n);
 }
 
-// 格式化大数字（万/亿）
 function fmtBig(n) {
   if (n >= 100000000) return (n / 100000000).toFixed(2) + '亿';
   if (n >= 10000) return (n / 10000).toFixed(1) + '万';
   return fmtNum(n);
 }
 
-// 判断涨跌颜色类
 function pctClass(v) {
   return v > 0 ? 'up' : v < 0 ? 'down' : '';
 }
 
-// 渲染统计面板
-function renderStats(data) {
-  document.getElementById('stat-total').textContent = data.total_scanned;
-  document.getElementById('stat-gao').textContent = data.gao_fu_shuai_count;
-  document.getElementById('stat-high').textContent = data.high_count;
-  document.getElementById('stat-up').textContent = data.up_count;
+// ===== 形态配置 =====
+const PATTERN_CONFIG = {
+  '高富帅': { tagClass: 'gold', color: '#e3b341' },
+  '白富美': { tagClass: 'purple', color: '#a371f7' },
+  '上涨乏力': { tagClass: 'orange', color: '#f0883e' },
+  '下跌乏力': { tagClass: 'cyan', color: '#39c5cf' },
+  '虚涨分歧': { tagClass: 'yellow', color: '#d29922' },
+  '虚跌分歧': { tagClass: 'blue', color: '#58a6ff' },
+  '涨势将尽': { tagClass: 'gray', color: '#8b949e' },
+  '跌势将尽': { tagClass: 'green', color: '#3fb950' },
+};
 
-  document.getElementById('data-date').textContent = data.data_date;
-  document.getElementById('scan-date').textContent = data.scan_date;
-}
+// ===== 渲染形态矩阵 =====
+function renderPatternMatrix(data) {
+  const container = document.getElementById('pattern-matrix');
+  const order = ['高富帅', '白富美', '上涨乏力', '下跌乏力', '虚涨分歧', '虚跌分歧', '涨势将尽', '跌势将尽'];
 
-// 渲染高富帅卡片
-function renderGaoFuShuai(data) {
-  const container = document.getElementById('gao-fu-shuai-cards');
-  const emptyState = document.getElementById('gao-empty');
-  const countBadge = document.getElementById('gao-count');
-
-  countBadge.textContent = data.gao_fu_shuai_count;
-
-  if (!data.gao_fu_shuai || data.gao_fu_shuai.length === 0) {
-    container.innerHTML = '';
-    emptyState.style.display = 'block';
-    return;
-  }
-
-  emptyState.style.display = 'none';
-
-  container.innerHTML = data.gao_fu_shuai.map(item => {
-    const holdBarWidth = Math.min(Math.abs(item.hold_change_pct) / 50 * 100, 100);
-    const priceClass = pctClass(item.price_change_pct);
+  container.innerHTML = order.map(name => {
+    const p = data.patterns[name];
+    const config = PATTERN_CONFIG[name];
+    const isZero = p.count === 0;
 
     return `
-      <div class="gfs-card">
-        <div class="gfs-badge">高富帅</div>
-        <div class="gfs-header">
-          <span class="gfs-symbol">${item.symbol}</span>
-          <span class="gfs-name">${item.name}</span>
-          <span class="gfs-exchange">${item.exchange}</span>
-        </div>
-        <div class="gfs-stats">
-          <div class="gfs-stat">
-            <div class="gfs-stat-label">持仓变化</div>
-            <div class="gfs-stat-value">
-              ${item.hold_change_pct > 0 ? '+' : ''}${item.hold_change_pct.toFixed(2)}%
-            </div>
-            <div class="progress-bar">
-              <div class="progress-fill" style="width: ${holdBarWidth}%"></div>
-            </div>
-            <div class="gfs-stat-label" style="margin-top:4px">
-              ${fmtNum(item.prev_hold)} → ${fmtNum(item.today_hold)}
-            </div>
-          </div>
-          <div class="gfs-stat">
-            <div class="gfs-stat-label">涨跌幅</div>
-            <div class="gfs-stat-value ${priceClass}">
-              ${item.price_change_pct > 0 ? '+' : ''}${item.price_change_pct.toFixed(2)}%
-            </div>
-            <div class="gfs-stat-label" style="margin-top:4px">
-              ¥${item.prev_close} → ¥${item.today_close}
-            </div>
-          </div>
-          <div class="gfs-stat">
-            <div class="gfs-stat-label">成交量</div>
-            <div class="gfs-stat-value">${fmtBig(item.today_vol)}</div>
-            <div class="gfs-stat-label" style="margin-top:4px">
-              5日均: ${fmtBig(item.vol_5ma)} · 20日均: ${fmtBig(item.vol_20ma)}
-            </div>
-          </div>
-          <div class="gfs-stat">
-            <div class="gfs-stat-label">条件满足</div>
-            <div class="conditions" style="margin-top:6px">
-              <span class="cond-dot gold">高</span>
-              <span class="cond-dot gold">富</span>
-              <span class="cond-dot gold">帅</span>
-            </div>
-          </div>
+      <div class="pattern-cell ${isZero ? 'empty' : ''}" data-pattern="${name}" onclick="scrollToPattern('${name}')">
+        <span class="cell-emoji">${p.emoji}</span>
+        <div class="cell-name">${name}</div>
+        <div class="cell-label">${p.label}</div>
+        <div class="cell-count ${isZero ? 'zero' : ''}">${p.count}</div>
+        <div class="cell-dims">
+          <span>价${p.dims.price === 'up' ? '↑涨' : '↓跌'}</span>
+          <span>量${p.dims.vol === 'up' ? '↑放' : '↓缩'}</span>
+          <span>仓${p.dims.hold === 'up' ? '↑增' : '↓减'}</span>
         </div>
       </div>
     `;
   }).join('');
 }
 
-// 渲染全部品种表格
+// ===== 渲染今日概览 =====
+function renderOverview(data) {
+  const container = document.getElementById('overview-stats');
+  container.innerHTML = `
+    <div class="overview-card">
+      <div class="ov-value">${data.valid_count}</div>
+      <div class="ov-label">有效品种</div>
+    </div>
+    <div class="overview-card up">
+      <div class="ov-value">${data.up_count}</div>
+      <div class="ov-label">上涨品种</div>
+    </div>
+    <div class="overview-card down">
+      <div class="ov-value">${data.down_count}</div>
+      <div class="ov-label">下跌品种</div>
+    </div>
+    <div class="overview-card">
+      <div class="ov-value">${data.error_count}</div>
+      <div class="ov-label">数据异常</div>
+    </div>
+  `;
+}
+
+// ===== 渲染形态详情 =====
+function renderPatternDetails(data) {
+  const container = document.getElementById('pattern-sections');
+  const order = ['高富帅', '白富美', '上涨乏力', '下跌乏力', '虚涨分歧', '虚跌分歧', '涨势将尽', '跌势将尽'];
+
+  container.innerHTML = order.map((name, idx) => {
+    const p = data.patterns[name];
+    const config = PATTERN_CONFIG[name];
+    const isOpen = idx < 2 || p.count > 0; // 前两个或有数据的默认展开
+
+    const itemsHtml = p.count > 0
+      ? `<div class="pd-items">${p.items.map(item => renderItemCard(item, name)).join('')}</div>`
+      : '<div class="empty-state">暂无该形态品种</div>';
+
+    return `
+      <div class="pattern-detail ${isOpen ? 'open' : ''}" id="pattern-${name}">
+        <div class="pattern-detail-header" onclick="togglePattern(this)">
+          <span class="pd-emoji">${p.emoji}</span>
+          <span class="pd-name" style="color:${config.color}">${name}</span>
+          <span class="pd-label">${p.label}</span>
+          <span class="pd-count" style="color:${config.color}">${p.count} 个</span>
+          <span class="pd-toggle">▼</span>
+        </div>
+        <div class="pattern-detail-body">
+          <div class="pd-desc">${p.desc}</div>
+          ${itemsHtml}
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ===== 渲染品种卡片 =====
+function renderItemCard(item, patternName) {
+  const config = PATTERN_CONFIG[patternName];
+  const priceClass = pctClass(item.price_change_pct);
+  const holdBarWidth = Math.min(Math.abs(item.hold_change_pct) / 30 * 100, 100);
+
+  return `
+    <div class="item-card">
+      <div class="item-card-header">
+        <span class="item-symbol" style="color:${config.color}">${item.symbol}</span>
+        <span class="item-name">${item.name}</span>
+        <span class="item-exchange">${item.exchange}</span>
+      </div>
+      <div class="item-stats">
+        <div class="item-stat">
+          <div class="item-stat-label">持仓变化</div>
+          <div class="item-stat-value">${item.hold_change_pct > 0 ? '+' : ''}${item.hold_change_pct.toFixed(2)}%</div>
+          <div class="progress-bar">
+            <div class="progress-fill" style="width:${holdBarWidth}%;background:${config.color}"></div>
+          </div>
+        </div>
+        <div class="item-stat">
+          <div class="item-stat-label">涨跌幅</div>
+          <div class="item-stat-value ${priceClass}">${item.price_change_pct > 0 ? '+' : ''}${item.price_change_pct.toFixed(2)}%</div>
+        </div>
+        <div class="item-stat">
+          <div class="item-stat-label">成交量</div>
+          <div class="item-stat-value">${fmtBig(item.today_vol)}</div>
+        </div>
+        <div class="item-stat">
+          <div class="item-stat-label">收盘价</div>
+          <div class="item-stat-value">¥${item.today_close}</div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+// ===== 渲染全部品种表格 =====
 function renderAllResults(data) {
   const tbody = document.getElementById('all-results-body');
-  const maxVol = Math.max(...data.all_results.map(r => Math.max(r.today_vol, r.vol_5ma, r.vol_20ma)));
 
   tbody.innerHTML = data.all_results.map((item, index) => {
     const rank = index + 1;
-    const isGfs = item.is_gao_fu_shuai;
+    const config = PATTERN_CONFIG[item.pattern] || { tagClass: 'gray' };
     const priceClass = pctClass(item.price_change_pct);
 
-    // 成交量相对5日均的比例条
+    // 成交量相对5日均的比例
     const volRatio = item.vol_5ma > 0 ? (item.today_vol / item.vol_5ma) : 0;
-    const volBarWidth = Math.min(volRatio * 50, 100);
-    const volBarClass = item.today_vol > item.vol_5ma && item.today_vol > item.vol_20ma ? 'above' : 'below';
+    const volBarWidth = Math.min(volRatio * 40, 100);
+    const volBarColor = item.today_vol > item.vol_5ma && item.today_vol > item.vol_20ma ? '#3fb950' : '#f85149';
+
+    // 三维徽章
+    const priceDim = item.price_change_pct > 0 ? 'up' : 'down';
+    const volDim = item.today_vol > item.vol_5ma && item.today_vol > item.vol_20ma ? 'vol-up' : 'vol-down';
+    const holdDim = item.hold_change_pct > 0 ? 'hold-up' : 'hold-down';
 
     return `
-      <tr class="${isGfs ? 'gfs-row' : ''}">
+      <tr>
         <td class="rank">${rank}</td>
         <td class="symbol-cell">
           ${item.symbol}
           <div class="symbol-name">${item.name}</div>
         </td>
         <td>${item.exchange}</td>
-        <td>
-          ${item.hold_change_amount > 0 ? '+' : ''}${fmtBig(item.hold_change_amount)}
-        </td>
+        <td><span class="pattern-tag ${config.tagClass}">${item.pattern}</span></td>
+        <td>${item.hold_change_amount > 0 ? '+' : ''}${fmtBig(item.hold_change_amount)}</td>
         <td class="change-pct ${item.hold_change_pct > 0 ? 'up' : item.hold_change_pct < 0 ? 'down' : ''}">
           ${item.hold_change_pct > 0 ? '+' : ''}${item.hold_change_pct.toFixed(2)}%
         </td>
         <td>
           ${fmtBig(item.today_vol)}
-          <span class="vol-bar">
-            <span class="vol-bar-fill ${volBarClass}" style="width: ${volBarWidth}%"></span>
+          <span class="vol-bar" style="display:inline-block;width:50px;height:5px;background:#161b22;border-radius:3px;vertical-align:middle;margin-left:6px;overflow:hidden">
+            <span style="display:block;height:100%;width:${volBarWidth}%;background:${volBarColor};border-radius:3px"></span>
           </span>
         </td>
         <td>${fmtBig(item.vol_5ma)}</td>
@@ -143,10 +193,10 @@ function renderAllResults(data) {
           ${item.price_change_pct > 0 ? '+' : ''}${item.price_change_pct.toFixed(2)}%
         </td>
         <td>
-          <div class="conditions">
-            <span class="cond-dot ${item.is_high ? 'gold' : 'off'}">高</span>
-            <span class="cond-dot ${item.is_rich ? 'on' : 'off'}">富</span>
-            <span class="cond-dot ${item.is_handsome ? 'on' : 'off'}">帅</span>
+          <div class="dims-badges">
+            <span class="dim-badge ${priceDim}">价${item.price_change_pct > 0 ? '↑' : '↓'}</span>
+            <span class="dim-badge ${volDim}">量${item.today_vol > item.vol_5ma ? '↑' : '↓'}</span>
+            <span class="dim-badge ${holdDim}">仓${item.hold_change_pct > 0 ? '↑' : '↓'}</span>
           </div>
         </td>
       </tr>
@@ -154,14 +204,41 @@ function renderAllResults(data) {
   }).join('');
 }
 
-// 主渲染函数
+// ===== 渲染头部信息 =====
+function renderHeader(data) {
+  document.getElementById('data-date').textContent = data.data_date;
+  document.getElementById('scan-date').textContent = data.scan_date;
+  document.getElementById('stat-total').textContent = data.total_scanned;
+}
+
+// ===== 主渲染函数 =====
 function render(data) {
-  renderStats(data);
-  renderGaoFuShuai(data);
+  renderHeader(data);
+  renderPatternMatrix(data);
+  renderOverview(data);
+  renderPatternDetails(data);
   renderAllResults(data);
 }
 
-// 加载数据
+// ===== 交互函数 =====
+function togglePattern(header) {
+  const detail = header.closest('.pattern-detail');
+  detail.classList.toggle('open');
+}
+
+function scrollToPattern(name) {
+  const el = document.getElementById(`pattern-${name}`);
+  if (el) {
+    el.classList.add('open');
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+}
+
+// 暴露到全局
+window.togglePattern = togglePattern;
+window.scrollToPattern = scrollToPattern;
+
+// ===== 加载数据 =====
 async function loadData() {
   try {
     const response = await fetch('data.json?t=' + Date.now());

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>高富帅 · 期货策略扫描</title>
+  <title>期货八种形态 · 北大策略扫描</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -11,8 +11,8 @@
     <!-- Header -->
     <header class="header">
       <div class="header-left">
-        <h1>🏆 高富帅</h1>
-        <p class="subtitle">期货主力连续合约 · 三条件策略扫描</p>
+        <h1>📊 期货八种形态</h1>
+        <p class="subtitle">成交量 · 持仓量 · 价格 · 三维共振分析</p>
       </div>
       <div class="header-right">
         <div class="meta-item">
@@ -23,72 +23,68 @@
           <span class="meta-label">扫描时间</span>
           <span class="meta-value" id="scan-date">--</span>
         </div>
+        <div class="meta-item">
+          <span class="meta-label">扫描品种</span>
+          <span class="meta-value" id="stat-total">--</span>
+        </div>
       </div>
     </header>
 
-    <!-- 策略说明 -->
-    <section class="strategy-info">
-      <div class="condition-tag">
-        <span class="condition-icon">📈</span>
+    <!-- 理论速览 -->
+    <section class="theory-banner">
+      <div class="theory-item">
+        <span class="theory-icon">👑</span>
         <div>
-          <strong>高</strong>
-          <span class="condition-desc">持仓量日环比 ≥ 20%</span>
+          <strong>三仆是臣</strong>
+          <span>成交量、持仓量验证价格趋势的有效性</span>
         </div>
       </div>
-      <div class="condition-tag">
-        <span class="condition-icon">💰</span>
+      <div class="theory-item">
+        <span class="theory-icon">🎯</span>
         <div>
-          <strong>富</strong>
-          <span class="condition-desc">成交量 > 5日/20日均量</span>
+          <strong>共振原则</strong>
+          <span>三仆与主方向一致，趋势最健康</span>
         </div>
       </div>
-      <div class="condition-tag">
-        <span class="condition-icon">🎯</span>
+      <div class="theory-item">
+        <span class="theory-icon">⚡</span>
         <div>
-          <strong>帅</strong>
-          <span class="condition-desc">涨跌幅绝对值 > 0.1%</span>
+          <strong>双爆量</strong>
+          <span>成交量突破5日/20日均量 = 高富帅/白富美</span>
         </div>
       </div>
     </section>
 
-    <!-- 统计面板 -->
-    <section class="stats-panel">
-      <div class="stat-card">
-        <div class="stat-icon">🔍</div>
-        <div class="stat-value" id="stat-total">--</div>
-        <div class="stat-label">扫描品种</div>
-      </div>
-      <div class="stat-card stat-highlight">
-        <div class="stat-icon">⭐</div>
-        <div class="stat-value" id="stat-gao">--</div>
-        <div class="stat-label">高富帅数量</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">📊</div>
-        <div class="stat-value" id="stat-high">--</div>
-        <div class="stat-label">增仓 ≥ 20%</div>
-      </div>
-      <div class="stat-card">
-        <div class="stat-icon">📈</div>
-        <div class="stat-value" id="stat-up">--</div>
-        <div class="stat-label">上涨品种</div>
-      </div>
-    </section>
-
-    <!-- 高富帅专区 -->
-    <section class="section" id="gao-fu-shuai-section">
+    <!-- 形态矩阵概览 -->
+    <section class="section">
       <h2 class="section-title">
-        <span class="title-icon">⭐</span>
-        高富帅品种
-        <span class="count-badge" id="gao-count">0</span>
+        <span class="title-icon">🔲</span>
+        八种形态矩阵
       </h2>
-      <div class="cards-grid" id="gao-fu-shuai-cards">
+      <div class="pattern-matrix" id="pattern-matrix">
         <!-- 动态渲染 -->
       </div>
-      <div class="empty-state" id="gao-empty">
-        <div class="empty-icon">😴</div>
-        <p>今日暂无高富帅品种</p>
-        <p class="empty-hint">同时满足「高」「富」「帅」三个条件的品种会在这里展示</p>
+    </section>
+
+    <!-- 今日概览 -->
+    <section class="section">
+      <h2 class="section-title">
+        <span class="title-icon">📈</span>
+        今日概览
+      </h2>
+      <div class="overview-stats" id="overview-stats">
+        <!-- 动态渲染 -->
+      </div>
+    </section>
+
+    <!-- 各形态详情 -->
+    <section class="section" id="pattern-details">
+      <h2 class="section-title">
+        <span class="title-icon">🔍</span>
+        形态详情
+      </h2>
+      <div id="pattern-sections">
+        <!-- 动态渲染 -->
       </div>
     </section>
 
@@ -106,6 +102,7 @@
               <th>排名</th>
               <th>品种</th>
               <th>交易所</th>
+              <th>形态</th>
               <th>持仓变化</th>
               <th>增仓幅度</th>
               <th>成交量</th>
@@ -113,7 +110,7 @@
               <th>20日均量</th>
               <th>收盘价</th>
               <th>涨跌幅</th>
-              <th>条件满足</th>
+              <th>三维</th>
             </tr>
           </thead>
           <tbody id="all-results-body">
@@ -123,10 +120,75 @@
       </div>
     </section>
 
+    <!-- 交易原则 -->
+    <section class="section theory-section">
+      <h2 class="section-title">
+        <span class="title-icon">📚</span>
+        交易原则参考
+      </h2>
+      <div class="principles-grid">
+        <div class="principle-card">
+          <h3>🎯 选择标的</h3>
+          <ul>
+            <li>高富帅：增仓 + 放量 + 上涨 → 选多点</li>
+            <li>白富美：增仓 + 放量 + 下跌 → 选空点</li>
+            <li>底部三角形有大行情，可翻3倍</li>
+            <li>岛型反转：常规3-5天，特殊10天内</li>
+          </ul>
+        </div>
+        <div class="principle-card">
+          <h3>📐 判断趋势</h3>
+          <ul>
+            <li>三步判断顶和底：破趋势线 → 反弹不创新高 → 破颈线</li>
+            <li>上升趋势线连接连续回调低点</li>
+            <li>管道线：从A点向右画平行线</li>
+            <li>震荡用摆动指数，趋势用移动平均线</li>
+          </ul>
+        </div>
+        <div class="principle-card">
+          <h3>💰 仓位管理</h3>
+          <ul>
+            <li>固定风险比率 2-5%，按损定量</li>
+            <li>金字塔加码：每次加上一次的60-80%</li>
+            <li>破加 → 回加 → 再破加</li>
+            <li>首次开仓30%，确认后逐步加仓</li>
+          </ul>
+        </div>
+        <div class="principle-card">
+          <h3>🛡️ 止损止盈</h3>
+          <ul>
+            <li>止损位坚决不变，止盈位随时调整</li>
+            <li>破21线平；破颈线全平；破趋势线全平</li>
+            <li>连拉3-5大阳：3根跑一半，5根全平仓</li>
+            <li>时间止损：波段3天，分钟8根K线</li>
+          </ul>
+        </div>
+        <div class="principle-card">
+          <h3>📏 目标测算</h3>
+          <ul>
+            <li>形态行情：第一目标位 = 原形态高度的一倍</li>
+            <li>三角形：最宽处从突破点顺势测量</li>
+            <li>管道线目标：加2-3根管道线</li>
+            <li>不吃鱼头和鱼尾，只吃2.5根线</li>
+          </ul>
+        </div>
+        <div class="principle-card">
+          <h3>⚠️ 风险控制</h3>
+          <ul>
+            <li>一定顺势交易，去读趋势跟踪</li>
+            <li>一定要有止损，活下去</li>
+            <li>一定要轻仓，逐步加仓</li>
+            <li>一定要过滤：RSI 80以上/20以下看蜡烛图</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
     <!-- Footer -->
     <footer class="footer">
-      <p>数据来源：新浪财经期货主力连续合约 · 策略计算基于 akshare</p>
-      <p>每日 15:35 自动更新</p>
+      <p>数据来源：新浪财经期货主力连续合约 · 策略基于 akshare</p>
+      <p>理论参考：北大期货班 · 王刚老师课程</p>
+      <p>每日 15:35 自动更新 · 八种形态三维共振分析</p>
     </footer>
   </div>
 

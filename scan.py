@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
 """
-策略1：高富帅 — 期货品种扫描器
-每天扫描期货品种，找出同时满足三个条件的品种
+期货品种八种形态扫描器
+基于成交量、持仓量与价格的八种组合分类
 """
 
 import json
 import sys
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import akshare as ak
 import pandas as pd
@@ -75,11 +74,71 @@ SYMBOLS = {
     "EC0": ("集运指数", "广期所"),
 }
 
+# 八种形态配置
+PATTERNS = {
+    "高富帅": {
+        "label": "强上涨信号",
+        "desc": "新资金大量涌入，多头主动进攻，趋势大概率延续",
+        "emoji": "🏆",
+        "color": "gold",
+        "dims": {"price": "up", "vol": "up", "hold": "up"},
+    },
+    "白富美": {
+        "label": "强下跌信号",
+        "desc": "新资金进入做空，空头主动打压，下跌趋势确认",
+        "emoji": "💎",
+        "color": "purple",
+        "dims": {"price": "down", "vol": "up", "hold": "up"},
+    },
+    "上涨乏力": {
+        "label": "上涨乏力",
+        "desc": "老多头获利了结，新多头接盘意愿不强，警惕反转",
+        "emoji": "⚠️",
+        "color": "orange",
+        "dims": {"price": "up", "vol": "up", "hold": "down"},
+    },
+    "下跌乏力": {
+        "label": "下跌乏力",
+        "desc": "老空头获利了结，新空头入场意愿不强，跌势或暂缓",
+        "emoji": "🛑",
+        "color": "cyan",
+        "dims": {"price": "down", "vol": "up", "hold": "down"},
+    },
+    "虚涨分歧": {
+        "label": "虚涨/分歧",
+        "desc": "或为空方在高位开空，多空分歧显著加大，需观望",
+        "emoji": "🔶",
+        "color": "yellow",
+        "dims": {"price": "up", "vol": "down", "hold": "up"},
+    },
+    "虚跌分歧": {
+        "label": "虚跌/分歧",
+        "desc": "或为多头在低位抄底，多空分歧加剧，趋势不明朗",
+        "emoji": "🔷",
+        "color": "blue",
+        "dims": {"price": "down", "vol": "down", "hold": "up"},
+    },
+    "涨势将尽": {
+        "label": "涨势将尽",
+        "desc": "多头力量明显衰退，市场缺乏新方向，趋势大概率结束",
+        "emoji": "📉",
+        "color": "gray",
+        "dims": {"price": "up", "vol": "down", "hold": "down"},
+    },
+    "跌势将尽": {
+        "label": "跌势将尽",
+        "desc": "空头力量衰退，抛压减小，市场或迎来反转契机",
+        "emoji": "📈",
+        "color": "green",
+        "dims": {"price": "down", "vol": "down", "hold": "down"},
+    },
+}
+
 
 def fetch_data(symbol: str, days: int = 60) -> pd.DataFrame | None:
     """获取期货主力连续合约最近 N 天日K线数据"""
     end_date = datetime.now()
-    start_date = end_date - timedelta(days=days + 15)  # 多取一些，避免节假日
+    start_date = end_date - timedelta(days=days + 15)
 
     try:
         df = ak.futures_main_sina(
@@ -89,7 +148,6 @@ def fetch_data(symbol: str, days: int = 60) -> pd.DataFrame | None:
         )
         if df is None or df.empty:
             return None
-        # 确保按日期升序排列
         df = df.sort_values("日期").reset_index(drop=True)
         return df
     except Exception as e:
@@ -97,13 +155,52 @@ def fetch_data(symbol: str, days: int = 60) -> pd.DataFrame | None:
         return None
 
 
+def classify_pattern(
+    price_change_pct: float,
+    today_vol: int,
+    vol_5ma: int,
+    vol_20ma: int,
+    hold_change_pct: float,
+) -> str:
+    """根据三个维度判断品种属于哪种形态"""
+    # 价格方向
+    is_up = price_change_pct > 0
+    is_down = price_change_pct < 0
+
+    # 成交量方向
+    is_vol_up = today_vol > vol_5ma and today_vol > vol_20ma  # 放量
+    is_vol_down = not is_vol_up  # 缩量
+
+    # 持仓量方向
+    is_hold_up = hold_change_pct > 0  # 增仓
+    is_hold_down = hold_change_pct < 0  # 减仓
+
+    if is_up and is_vol_up and is_hold_up:
+        return "高富帅"
+    elif is_down and is_vol_up and is_hold_up:
+        return "白富美"
+    elif is_up and is_vol_up and is_hold_down:
+        return "上涨乏力"
+    elif is_down and is_vol_up and is_hold_down:
+        return "下跌乏力"
+    elif is_up and is_vol_down and is_hold_up:
+        return "虚涨分歧"
+    elif is_down and is_vol_down and is_hold_up:
+        return "虚跌分歧"
+    elif is_up and is_vol_down and is_hold_down:
+        return "涨势将尽"
+    elif is_down and is_vol_down and is_hold_down:
+        return "跌势将尽"
+    else:
+        return "未分类"  # 涨跌幅=0 的平盘情况
+
+
 def analyze_symbol(symbol: str, name: str, exchange: str) -> dict | None:
     """分析单个品种，返回结果字典"""
     df = fetch_data(symbol, days=60)
-    if df is None or len(df) < 21:  # 需要至少21天数据（20日平均 + 今日）
+    if df is None or len(df) < 21:
         return None
 
-    # 取最近两天
     today_row = df.iloc[-1]
     prev_row = df.iloc[-2]
 
@@ -113,30 +210,27 @@ def analyze_symbol(symbol: str, name: str, exchange: str) -> dict | None:
     today_close = float(today_row["收盘价"])
     prev_close = float(prev_row["收盘价"])
 
-    # 计算5日平均成交量（最近5天，含今日）
     vol_5ma = int(df["成交量"].iloc[-5:].mean())
-    # 计算20日平均成交量（最近20天，含今日）
     vol_20ma = int(df["成交量"].iloc[-20:].mean())
 
-    # 条件1：高（增仓）—— 持仓量日环比 ≥ 20%
     if prev_hold > 0:
         hold_change_pct = (today_hold - prev_hold) / prev_hold * 100
     else:
         hold_change_pct = 0.0
-    is_high = hold_change_pct >= 20.0
 
-    # 条件2：富（放量）—— 当日成交量 > 5日平均 且 > 20日平均
-    is_rich = today_vol > vol_5ma and today_vol > vol_20ma
-
-    # 条件3：帅（方向）—— 价格涨跌幅绝对值 > 0.1%
     if prev_close > 0:
         price_change_pct = (today_close - prev_close) / prev_close * 100
     else:
         price_change_pct = 0.0
-    is_handsome = abs(price_change_pct) > 0.1
 
-    # 是否同时满足三个条件
-    is_gao_fu_shuai = is_high and is_rich and is_handsome
+    # 八种形态分类
+    pattern = classify_pattern(
+        price_change_pct=price_change_pct,
+        today_vol=today_vol,
+        vol_5ma=vol_5ma,
+        vol_20ma=vol_20ma,
+        hold_change_pct=hold_change_pct,
+    )
 
     return {
         "symbol": symbol,
@@ -153,10 +247,12 @@ def analyze_symbol(symbol: str, name: str, exchange: str) -> dict | None:
         "today_close": round(today_close, 2),
         "prev_close": round(prev_close, 2),
         "price_change_pct": round(price_change_pct, 2),
-        "is_gao_fu_shuai": is_gao_fu_shuai,
-        "is_high": is_high,
-        "is_rich": is_rich,
-        "is_handsome": is_handsome,
+        "pattern": pattern,
+        "dims": {
+            "price": "上涨" if price_change_pct > 0 else "下跌" if price_change_pct < 0 else "平盘",
+            "vol": "放量" if today_vol > vol_5ma and today_vol > vol_20ma else "缩量",
+            "hold": "增仓" if hold_change_pct > 0 else "减仓" if hold_change_pct < 0 else "持平",
+        },
     }
 
 
@@ -172,47 +268,57 @@ def scan_all() -> dict:
         print(f"扫描 {symbol} ({name})...", end=" ")
         result = analyze_symbol(symbol, name, exchange)
         if result:
-            print(f"✓ 持仓变化 {result['hold_change_pct']:+.2f}%, 涨跌 {result['price_change_pct']:+.2f}%")
+            print(f"✓ {result['pattern']} | 持仓变化 {result['hold_change_pct']:+.2f}%, 涨跌 {result['price_change_pct']:+.2f}%")
             all_results.append(result)
         else:
             print("✗ 数据不足或获取失败")
             errors.append(symbol)
 
-    # 按增仓幅度降序排列
+    # 按持仓变化幅度降序排列
     all_results.sort(key=lambda x: x["hold_change_pct"], reverse=True)
 
-    gao_fu_shuai = [r for r in all_results if r["is_gao_fu_shuai"]]
-    high_count = sum(1 for r in all_results if r["is_high"])
-    up_count = sum(1 for r in all_results if r["price_change_pct"] > 0)
+    # 按形态分组
+    pattern_groups = {name: [] for name in PATTERNS}
+    for r in all_results:
+        if r["pattern"] in pattern_groups:
+            pattern_groups[r["pattern"]].append(r)
 
-    # 数据日期 = 最近一个有效交易日
+    # 数据日期
     data_date = all_results[0]["date"] if all_results else scan_date
+
+    # 上涨/下跌统计
+    up_count = sum(1 for r in all_results if r["price_change_pct"] > 0)
+    down_count = sum(1 for r in all_results if r["price_change_pct"] < 0)
 
     output = {
         "scan_date": scan_date,
         "data_date": data_date,
-        "strategy": "高富帅",
-        "conditions": {
-            "high": "持仓量日环比 ≥ 20%",
-            "rich": "当日成交量 > 5日平均成交量 且 > 20日平均成交量",
-            "handsome": "价格涨跌幅绝对值 > 0.1%",
-        },
+        "strategy": "八种形态",
         "total_scanned": len(SYMBOLS),
         "valid_count": len(all_results),
         "error_count": len(errors),
         "errors": errors,
-        "gao_fu_shuai_count": len(gao_fu_shuai),
-        "high_count": high_count,
         "up_count": up_count,
+        "down_count": down_count,
+        "patterns": {
+            name: {
+                "label": info["label"],
+                "desc": info["desc"],
+                "emoji": info["emoji"],
+                "color": info["color"],
+                "dims": info["dims"],
+                "count": len(pattern_groups[name]),
+                "items": pattern_groups[name],
+            }
+            for name, info in PATTERNS.items()
+        },
         "all_results": all_results,
-        "gao_fu_shuai": gao_fu_shuai,
     }
 
     return output
 
 
 def save_json(data: dict, path: str = "data.json") -> None:
-    """保存 JSON 数据文件"""
     with open(path, "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
     print(f"\n数据已保存到 {path}")
@@ -222,23 +328,30 @@ def main():
     data = scan_all()
     save_json(data, "data.json")
 
-    print(f"\n{'='*50}")
+    print(f"\n{'='*60}")
     print(f"扫描日期: {data['scan_date']}")
     print(f"数据日期: {data['data_date']}")
     print(f"扫描品种: {data['total_scanned']} 个")
     print(f"有效数据: {data['valid_count']} 个")
     print(f"失败品种: {data['error_count']} 个")
-    print(f"高富帅数量: {data['gao_fu_shuai_count']} 个")
-    print(f"增仓≥20%: {data['high_count']} 个")
-    print(f"上涨品种: {data['up_count']} 个")
-    print(f"{'='*50}")
+    print(f"上涨: {data['up_count']} 个 | 下跌: {data['down_count']} 个")
+    print(f"{'='*60}")
 
-    if data["gao_fu_shuai"]:
-        print("\n⭐ 高富帅品种:")
-        for item in data["gao_fu_shuai"]:
-            print(f"  {item['symbol']} {item['name']} — 增仓 {item['hold_change_pct']:+.2f}%, 涨跌 {item['price_change_pct']:+.2f}%")
-    else:
-        print("\n😔 今日没有高富帅品种")
+    print("\n📊 八种形态分布:")
+    for name, info in PATTERNS.items():
+        count = data["patterns"][name]["count"]
+        bar = "█" * count + "░" * (5 - min(count, 5))
+        print(f"  {info['emoji']} {name:8s} ({info['label']:10s}) : {count:2d} 个  {bar}")
+
+    # 打印有品种的非空形态
+    non_empty = [(n, data["patterns"][n]) for n in PATTERNS if data["patterns"][n]["count"] > 0]
+    if non_empty:
+        print(f"\n{'='*60}")
+        for name, p in non_empty:
+            print(f"\n{PATTERNS[name]['emoji']} {name} ({PATTERNS[name]['label']}) — {p['count']} 个:")
+            for item in p["items"]:
+                direction = "↑" if item["price_change_pct"] > 0 else "↓"
+                print(f"    {item['symbol']:5s} {item['name']:6s} {direction} 持仓{item['hold_change_pct']:+6.2f}% 价格{item['price_change_pct']:+6.2f}%")
 
     return data
 
